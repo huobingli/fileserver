@@ -87,10 +87,30 @@ func GetCpuPercent() float64 {
 	return percent[0]
 }
 
+func GetCpuInfo(w http.ResponseWriter, r *http.Request) {
+	fmt.Fprintln(w, GetCpuPercent())
+}
+
+func GetCPUInfoma() float64 {
+	percent, _ := cpu.Percent(time.Second, false)
+	fmt.Print(percent)
+	return percent[0]
+}
+
 // 获取内存使用情况
 func GetMemPercent() float64 {
 	memInfo, _ := mem.VirtualMemory()
 	return memInfo.UsedPercent
+}
+
+func GetMemoryInfo() float64 {
+	memInfo, _ := mem.VirtualMemory()
+	fmt.Print(memInfo)
+	return memInfo.UsedPercent
+}
+
+func GetMemInfo(w http.ResponseWriter, r *http.Request) {
+	fmt.Fprintln(w, GetMemPercent())
 }
 
 // 获取磁盘使用情况
@@ -126,13 +146,56 @@ func getdiskinfo(w http.ResponseWriter, r *http.Request) {
 	fmt.Fprintln(w, strOut)
 }
 
+func GetDiskInfoma() string {
+	parts, err := disk.Partitions(true)
+	if err != nil {
+		fmt.Print("get Partitions failed, err:%v\n", err)
+		return "disk not find"
+	}
+
+	strOut := ""
+	for _, part := range parts {
+		// fmt.Print("part:%v\n", part.String())
+		diskInfo, _ := disk.Usage(part.Mountpoint)
+		// fmt.Print(diskInfo)
+		// fmt.Print("disk info:used:%f free:%f\n", diskInfo.UsedPercent, diskInfo.Free)
+		strtmp := fmt.Sprintf("%v disk info:已经使用占比:%.2f%% 空闲空间:%.2fG\n", diskInfo.Path, diskInfo.UsedPercent, (float64)(diskInfo.Free)/1024/1024/1024)
+		strOut += strtmp
+	}
+
+	// 磁盘IO
+	// ioStat, _ := disk.IOCounters()
+	// strOut := ""
+	// for k, v := range ioStat {
+	// 	strtmp := fmt.Sprintf("%v:%v\n", k, v)
+	// 	strOut += strtmp
+	// }
+
+	return strOut
+	// fmt.Fprintln(w, strOut)
+}
+
+// 获取系统信息 磁盘，内存，cpu使用信息
+func GetSystemInfo(w http.ResponseWriter, r *http.Request) {
+	strDisk := GetDiskInfoma()
+
+	strDisk = "磁盘使用:\n" + strDisk + "\n"
+	strMem := fmt.Sprintf("内存使用: %f\n", GetMemoryInfo())
+	strCPU := fmt.Sprintf("CPU使用: %f\n", GetCPUInfoma())
+
+	fmt.Fprintln(w, strDisk+strMem+strCPU)
+}
+
 func main() {
 	mux := http.NewServeMux()
 
 	// 其他接口
 	mux.HandleFunc("/cleanfile", cleanfile)
-	mux.HandleFunc("/getdiskinfo", getdiskinfo)
+	// mux.HandleFunc("/getdiskinfo", getdiskinfo)
 	mux.HandleFunc("/downfile", downfile)
+	mux.HandleFunc("/getmeminfo", GetMemInfo)
+	mux.HandleFunc("/getcpuinfo", GetCpuInfo)
+	mux.HandleFunc("/GetSystemInfo", GetSystemInfo)
 
 	// 文件服务器
 	mux.Handle("/", http.FileServer(http.Dir(BaseUploadPath)))
