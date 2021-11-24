@@ -93,9 +93,17 @@ func GetCpuInfo(w http.ResponseWriter, r *http.Request) {
 
 func GetCPUInfoma() float64 {
 	percent, _ := cpu.Percent(time.Second, false)
-	fmt.Print(percent)
+	// fmt.Print(percent)
+	// info, _ := cpu.Info()
+	info, _ := cpu.Times(false)
+	fmt.Print(info)
 	return percent[0]
 }
+
+// func GetCPUDetail() string {
+// 	info, _ := cpu.Info()
+// 	fmt.Print(info)
+// }
 
 // 获取内存使用情况
 func GetMemPercent() float64 {
@@ -107,6 +115,12 @@ func GetMemoryInfo() float64 {
 	memInfo, _ := mem.VirtualMemory()
 	fmt.Print(memInfo)
 	return memInfo.UsedPercent
+}
+
+func GetMemDetail() string {
+	memInfo, _ := mem.VirtualMemory()
+	strRet := fmt.Sprintf("使用比例: %f%%, 总共：%.2fG, 已经使用：%.2fG, 未使用：%.2fG\n", memInfo.UsedPercent, (float64)(memInfo.Total)/1024/1024/1024, (float64)(memInfo.Used)/1024/1024/1024, (float64)(memInfo.Available)/1024/1024/1024)
+	return strRet
 }
 
 func GetMemInfo(w http.ResponseWriter, r *http.Request) {
@@ -180,7 +194,8 @@ func GetSystemInfo(w http.ResponseWriter, r *http.Request) {
 	strDisk := GetDiskInfoma()
 
 	strDisk = "磁盘使用:\n" + strDisk + "\n"
-	strMem := fmt.Sprintf("内存使用: %f\n", GetMemoryInfo())
+	// strMem := fmt.Sprintf("内存使用: %f\n", GetMemoryInfo())
+	strMem := "内存使用:\n" + GetMemDetail() + "\n"
 	strCPU := fmt.Sprintf("CPU使用: %f\n", GetCPUInfoma())
 
 	fmt.Fprintln(w, strDisk+strMem+strCPU)
