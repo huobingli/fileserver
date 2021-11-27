@@ -13,6 +13,8 @@ import (
 	"github.com/shirou/gopsutil/cpu"
 	"github.com/shirou/gopsutil/disk"
 	"github.com/shirou/gopsutil/mem"
+	"github.com/shirou/gopsutil/process"
+	"github.com/shirou/gopsutil/winservices"
 )
 
 const BaseUploadPath = "D:\\client_pack\\work_dir\\pdb_file"
@@ -201,6 +203,49 @@ func GetSystemInfo(w http.ResponseWriter, r *http.Request) {
 	fmt.Fprintln(w, strDisk+strMem+strCPU)
 }
 
+func GetProcessInfo(w http.ResponseWriter, r *http.Request) {
+	// var rootProcess *process.Process
+	processes, _ := process.Processes()
+
+	// fmt.Print(processes)
+	// for _, p := range processes {
+	// 	if p.Pid == 0 {
+	// 		rootProcess = p
+	// 		break
+	// 	}
+	// }
+
+	// fmt.Println(rootProcess)
+
+	// fmt.Println("children:")
+	// children, _ := rootProcess.Children()
+	// for _, p := range children {
+	// 	fmt.Println(p)
+	// }
+
+	pids, _ := process.Pids()
+	for _ := range pids {
+		pn, _ := process.NewProcess(pid)
+		pName, _ := pn.Name()
+		pName = append(pname, pName)
+	}
+
+	fmt.Fprintln(w, "console")
+}
+
+func GetServiceInfo(w http.ResponseWriter, r *http.Request) {
+	services, _ := winservices.ListServices()
+
+	fmt.Print(services)
+	for _, service := range services {
+		newservice, _ := winservices.NewService(service.Name)
+		newservice.GetServiceDetail()
+		fmt.Println("Name:", newservice.Name, "Binary Path:", newservice.Config.BinaryPathName, "State: ", newservice.Status.State)
+	}
+
+	fmt.Fprintln(w, "console")
+}
+
 func main() {
 	mux := http.NewServeMux()
 
@@ -211,6 +256,8 @@ func main() {
 	mux.HandleFunc("/getmeminfo", GetMemInfo)
 	mux.HandleFunc("/getcpuinfo", GetCpuInfo)
 	mux.HandleFunc("/GetSystemInfo", GetSystemInfo)
+	mux.HandleFunc("/GetProcessInfo", GetProcessInfo)
+	mux.HandleFunc("/GetServiceInfo", GetServiceInfo)
 
 	// 文件服务器
 	mux.Handle("/", http.FileServer(http.Dir(BaseUploadPath)))
