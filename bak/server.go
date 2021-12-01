@@ -13,6 +13,7 @@ import (
 	"github.com/shirou/gopsutil/cpu"
 	"github.com/shirou/gopsutil/disk"
 	"github.com/shirou/gopsutil/mem"
+	"github.com/shirou/gopsutil/process"
 	"github.com/shirou/gopsutil/winservices"
 )
 
@@ -94,10 +95,17 @@ func GetCpuInfo(w http.ResponseWriter, r *http.Request) {
 
 func GetCPUInfoma() float64 {
 	percent, _ := cpu.Percent(time.Second, false)
+	// fmt.Print(percent)
+	// info, _ := cpu.Info()
 	info, _ := cpu.Times(false)
 	fmt.Print(info)
 	return percent[0]
 }
+
+// func GetCPUDetail() string {
+// 	info, _ := cpu.Info()
+// 	fmt.Print(info)
+// }
 
 // 获取内存使用情况
 func GetMemPercent() float64 {
@@ -163,12 +171,24 @@ func GetDiskInfoma() string {
 
 	strOut := ""
 	for _, part := range parts {
+		// fmt.Print("part:%v\n", part.String())
 		diskInfo, _ := disk.Usage(part.Mountpoint)
+		// fmt.Print(diskInfo)
+		// fmt.Print("disk info:used:%f free:%f\n", diskInfo.UsedPercent, diskInfo.Free)
 		strtmp := fmt.Sprintf("%v disk info:已经使用占比:%.2f%% 空闲空间:%.2fG\n", diskInfo.Path, diskInfo.UsedPercent, (float64)(diskInfo.Free)/1024/1024/1024)
 		strOut += strtmp
 	}
 
+	// 磁盘IO
+	// ioStat, _ := disk.IOCounters()
+	// strOut := ""
+	// for k, v := range ioStat {
+	// 	strtmp := fmt.Sprintf("%v:%v\n", k, v)
+	// 	strOut += strtmp
+	// }
+
 	return strOut
+	// fmt.Fprintln(w, strOut)
 }
 
 // 获取系统信息 磁盘，内存，cpu使用信息
@@ -176,6 +196,7 @@ func GetSystemInfo(w http.ResponseWriter, r *http.Request) {
 	strDisk := GetDiskInfoma()
 
 	strDisk = "磁盘使用:\n" + strDisk + "\n"
+	// strMem := fmt.Sprintf("内存使用: %f\n", GetMemoryInfo())
 	strMem := "内存使用:\n" + GetMemDetail() + "\n"
 	strCPU := fmt.Sprintf("CPU使用: %f\n", GetCPUInfoma())
 
@@ -183,14 +204,31 @@ func GetSystemInfo(w http.ResponseWriter, r *http.Request) {
 }
 
 func GetProcessInfo(w http.ResponseWriter, r *http.Request) {
-	// processes, _ := process.Processes()
+	// var rootProcess *process.Process
+	processes, _ := process.Processes()
 
-	// pids, _ := process.Pids()
-	// for pid, _ := range pids {
-	// 	pn, _ := process.NewProcess(pid)
-	// 	pName, _ := pn.Name()
-	// 	pName = append(pname, pName)
+	// fmt.Print(processes)
+	// for _, p := range processes {
+	// 	if p.Pid == 0 {
+	// 		rootProcess = p
+	// 		break
+	// 	}
 	// }
+
+	// fmt.Println(rootProcess)
+
+	// fmt.Println("children:")
+	// children, _ := rootProcess.Children()
+	// for _, p := range children {
+	// 	fmt.Println(p)
+	// }
+
+	pids, _ := process.Pids()
+	for _ := range pids {
+		pn, _ := process.NewProcess(pid)
+		pName, _ := pn.Name()
+		pName = append(pname, pName)
+	}
 
 	fmt.Fprintln(w, "console")
 }
@@ -213,6 +251,7 @@ func main() {
 
 	// 其他接口
 	mux.HandleFunc("/cleanfile", cleanfile)
+	// mux.HandleFunc("/getdiskinfo", getdiskinfo)
 	mux.HandleFunc("/downfile", downfile)
 	mux.HandleFunc("/getmeminfo", GetMemInfo)
 	mux.HandleFunc("/getcpuinfo", GetCpuInfo)
