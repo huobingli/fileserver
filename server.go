@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"io"
 	"io/ioutil"
 	"log"
 	"net/http"
@@ -18,14 +19,14 @@ import (
 
 const BaseUploadPath = "D:\\client_pack\\work_dir\\pdb_file"
 
-func TimeParseYYYYMMDD(in string, sub string) (out time.Time, err error) {
-	layout := "2006" + sub + "01" + sub + "02"
-	out, err = time.ParseInLocation(layout, in, time.Local)
-	if err != nil {
-		return
-	}
-	return
-}
+// func TimeParseYYYYMMDD(in string, sub string) (out time.Time, err error) {
+// 	layout := "2006" + sub + "01" + sub + "02"
+// 	out, err = time.ParseInLocation(layout, in, time.Local)
+// 	if err != nil {
+// 		return
+// 	}
+// 	return
+// }
 
 func getCurDay() (date int) {
 	curTime := time.Now()
@@ -35,7 +36,7 @@ func getCurDay() (date int) {
 	return year*10000 + month*100 + day
 }
 
-func downfile(w http.ResponseWriter, r *http.Request) {
+func Downfile(w http.ResponseWriter, r *http.Request) {
 	filename := r.FormValue("context")
 	filepath := BaseUploadPath + filename
 
@@ -44,6 +45,50 @@ func downfile(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Disposition", "attachment; filename="+filename)
 	w.Header().Set("Content-Type", "application/text/plain")
 	http.ServeFile(w, r, filepath)
+}
+
+const UploadPath = "D:\\gitProject\\fileserver\\upload\\test"
+
+func Uploadfile(w http.ResponseWriter, request *http.Request) {
+	fmt.Println("handle upload")
+	//文件上传只允许POST方法
+	if request.Method != http.MethodPost {
+		w.WriteHeader(http.StatusMethodNotAllowed)
+		_, _ = w.Write([]byte("Method not allowed"))
+		return
+	}
+	fmt.Println("handle upload1")
+	//从表单中读取文件
+	file, fileHeader, err := request.FormFile("file")
+	fmt.Println(file)
+	fmt.Println(fileHeader)
+	if err != nil {
+		_, _ = io.WriteString(w, "Read file error")
+		return
+	}
+	fmt.Println("handle upload2")
+	//defer 结束时关闭文件
+	defer file.Close()
+	fmt.Println("filename: " + fileHeader.Filename)
+
+	//创建文件
+	newFile, err := os.Create(UploadPath + "/" + fileHeader.Filename)
+	if err != nil {
+		_, _ = io.WriteString(w, "Create file error")
+		return
+	}
+	fmt.Println("handle upload3")
+	//defer 结束时关闭文件
+	defer newFile.Close()
+
+	//将文件写到本地
+	_, err = io.Copy(newFile, file)
+	if err != nil {
+		_, _ = io.WriteString(w, "Write file error")
+		return
+	}
+	fmt.Println("handle upload4")
+	_, _ = io.WriteString(w, "Upload success")
 }
 
 // 清理目录中一个月前的的临时文件  文件格式 日期_创建时间
@@ -211,14 +256,23 @@ func GetServiceInfo(w http.ResponseWriter, r *http.Request) {
 func main() {
 	mux := http.NewServeMux()
 
-	// 其他接口
+	// 其他接口 清理文件，上传下载文件
 	mux.HandleFunc("/cleanfile", cleanfile)
-	mux.HandleFunc("/downfile", downfile)
+	mux.HandleFunc("/Uploadfile", Uploadfile)
+	mux.HandleFunc("/Downfile", Downfile)
+
+	// 获取系统信息
 	mux.HandleFunc("/getmeminfo", GetMemInfo)
 	mux.HandleFunc("/getcpuinfo", GetCpuInfo)
 	mux.HandleFunc("/GetSystemInfo", GetSystemInfo)
 	mux.HandleFunc("/GetProcessInfo", GetProcessInfo)
 	mux.HandleFunc("/GetServiceInfo", GetServiceInfo)
+
+	// 其他操作
+	// svn更新
+	mux.HandleFunc("UpdateSvn", UpdateSvn)
+	// kill进程
+	mux.HandleFunc("KillPython", KillPython)
 
 	// 文件服务器
 	mux.Handle("/", http.FileServer(http.Dir(BaseUploadPath)))

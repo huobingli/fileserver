@@ -34,5 +34,5 @@ data = {
 }
 # response = requests.post("http://localhost:3000/upload", headers=headers, files=file, data=data)
 files = {'file': open(filepath, 'rb')}
-response = requests.post("http://localhost:3000/upload", files=files)
+response = requests.post("http://localhost:8081/Uploadfile", files=files)
 print(response.status_code)
