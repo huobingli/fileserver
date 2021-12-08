@@ -17,7 +17,7 @@ import (
 	"github.com/shirou/gopsutil/winservices"
 )
 
-const BaseUploadPath = "D:\\client_pack\\work_dir\\pdb_file"
+const BaseUploadPath = "E:\\"
 
 // func TimeParseYYYYMMDD(in string, sub string) (out time.Time, err error) {
 // 	layout := "2006" + sub + "01" + sub + "02"
@@ -47,7 +47,7 @@ func Downfile(w http.ResponseWriter, r *http.Request) {
 	http.ServeFile(w, r, filepath)
 }
 
-const UploadPath = "D:\\gitProject\\fileserver\\upload\\test"
+const UploadPath = "E:\\fileserver\\upload\\"
 
 func Uploadfile(w http.ResponseWriter, request *http.Request) {
 	fmt.Println("handle upload")
@@ -270,9 +270,9 @@ func main() {
 
 	// 其他操作
 	// svn更新
-	mux.HandleFunc("UpdateSvn", UpdateSvn)
-	// kill进程
-	mux.HandleFunc("KillPython", KillPython)
+	// mux.HandleFunc("UpdateSvn", UpdateSvn)
+	// // kill进程
+	// mux.HandleFunc("KillPython", KillPython)
 
 	// 文件服务器
 	mux.Handle("/", http.FileServer(http.Dir(BaseUploadPath)))
