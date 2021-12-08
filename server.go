@@ -128,16 +128,7 @@ func cleanfile(w http.ResponseWriter, r *http.Request) {
 }
 
 // 获取CPU使用情况
-func GetCpuPercent() float64 {
-	percent, _ := cpu.Percent(time.Second, false)
-	return percent[0]
-}
-
-func GetCpuInfo(w http.ResponseWriter, r *http.Request) {
-	fmt.Fprintln(w, GetCpuPercent())
-}
-
-func GetCPUInfoma() float64 {
+func GetCPUInfo() float64 {
 	percent, _ := cpu.Percent(time.Second, false)
 	info, _ := cpu.Times(false)
 	fmt.Print(info)
@@ -145,38 +136,17 @@ func GetCPUInfoma() float64 {
 }
 
 // 获取内存使用情况
-func GetMemPercent() float64 {
-	memInfo, _ := mem.VirtualMemory()
-	return memInfo.UsedPercent
-}
-
-func GetMemoryInfo() float64 {
-	memInfo, _ := mem.VirtualMemory()
-	fmt.Print(memInfo)
-	return memInfo.UsedPercent
-}
-
-func GetMemDetail() string {
+func GetMemInfo() string {
 	memInfo, _ := mem.VirtualMemory()
 	strRet := fmt.Sprintf("使用比例: %f%%, 总共：%.2fG, 已经使用：%.2fG, 未使用：%.2fG\n", memInfo.UsedPercent, (float64)(memInfo.Total)/1024/1024/1024, (float64)(memInfo.Used)/1024/1024/1024, (float64)(memInfo.Available)/1024/1024/1024)
 	return strRet
 }
 
-func GetMemInfo(w http.ResponseWriter, r *http.Request) {
-	fmt.Fprintln(w, GetMemPercent())
-}
-
 // 获取磁盘使用情况
-func GetDiskPercent() float64 {
-	parts, _ := disk.Partitions(true)
-	diskInfo, _ := disk.Usage(parts[0].Mountpoint)
-	return diskInfo.UsedPercent
-}
-
 // 后面想获取磁盘信息，预留一下口子与参考blog
 // https://blog.csdn.net/whatday/article/details/109620192
 // TODO需要调试一下输出
-func getdiskinfo(w http.ResponseWriter, r *http.Request) {
+func GetDiskInfo2(w http.ResponseWriter, r *http.Request) {
 	parts, err := disk.Partitions(true)
 	if err != nil {
 		fmt.Print("get Partitions failed, err:%v\n", err)
@@ -199,7 +169,7 @@ func getdiskinfo(w http.ResponseWriter, r *http.Request) {
 	fmt.Fprintln(w, strOut)
 }
 
-func GetDiskInfoma() string {
+func GetDiskInfo() string {
 	parts, err := disk.Partitions(true)
 	if err != nil {
 		fmt.Print("get Partitions failed, err:%v\n", err)
@@ -218,25 +188,16 @@ func GetDiskInfoma() string {
 
 // 获取系统信息 磁盘，内存，cpu使用信息
 func GetSystemInfo(w http.ResponseWriter, r *http.Request) {
-	strDisk := GetDiskInfoma()
+	strDisk := GetDiskInfo()
 
 	strDisk = "磁盘使用:\n" + strDisk + "\n"
-	strMem := "内存使用:\n" + GetMemDetail() + "\n"
-	strCPU := fmt.Sprintf("CPU使用: %f\n", GetCPUInfoma())
+	strMem := "内存使用:\n" + GetMemInfo() + "\n"
+	strCPU := fmt.Sprintf("CPU使用: %f\n", GetCPUInfo())
 
 	fmt.Fprintln(w, strDisk+strMem+strCPU)
 }
 
 func GetProcessInfo(w http.ResponseWriter, r *http.Request) {
-	// processes, _ := process.Processes()
-
-	// pids, _ := process.Pids()
-	// for pid, _ := range pids {
-	// 	pn, _ := process.NewProcess(pid)
-	// 	pName, _ := pn.Name()
-	// 	pName = append(pname, pName)
-	// }
-
 	fmt.Fprintln(w, "console")
 }
 
@@ -262,10 +223,7 @@ func main() {
 	mux.HandleFunc("/Downfile", Downfile)
 
 	// 获取系统信息
-	mux.HandleFunc("/getmeminfo", GetMemInfo)
-	mux.HandleFunc("/getcpuinfo", GetCpuInfo)
 	mux.HandleFunc("/GetSystemInfo", GetSystemInfo)
-	mux.HandleFunc("/GetProcessInfo", GetProcessInfo)
 	mux.HandleFunc("/GetServiceInfo", GetServiceInfo)
 
 	// 其他操作
