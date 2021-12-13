@@ -21,7 +21,8 @@ headers = {
     "User-Agent": "Mozilla/5.0 (Windows NT 6.1; WOW64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/76.0.3809.87 Safari/537.36"
 }
 
-filepath="D:\\gitProject\\fileserver\\upload\\1.txt"
+# filepath="D:\\gitProject\\fileserver\\upload\\1.txt"
+filepath="D:\\ideaIC-2021.2.2.win.zip"
 # requests.head
 # data=filepath#{"file":filepath}
 data = {
@@ -36,3 +37,4 @@ data = {
 files = {'file': open(filepath, 'rb')}
 response = requests.post("http://localhost:8081/Uploadfile", files=files)
 print(response.status_code)
+print(response.text)

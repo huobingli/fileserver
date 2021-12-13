@@ -11,13 +11,44 @@ import (
 	"strings"
 	"time"
 
+	"github.com/BurntSushi/toml"
 	"github.com/shirou/gopsutil/cpu"
 	"github.com/shirou/gopsutil/disk"
 	"github.com/shirou/gopsutil/mem"
 	"github.com/shirou/gopsutil/winservices"
 )
 
-const BaseUploadPath = "E:\\"
+type conf struct {
+	Pdb_dir     string
+	File_dir    string
+	File_server string
+}
+
+var cf conf
+
+// const cf conf
+func load_config() error {
+	// var cf conf
+	var path string = "./conf.toml"
+	if _, err := toml.DecodeFile(path, &cf); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func TestDir(w http.ResponseWriter, request *http.Request) {
+	str := "pdb目录" + cf.Pdb_dir + "\n" + "上传目录" + cf.File_dir
+	fmt.Fprintln(w, str)
+}
+
+func ReloadConf(w http.ResponseWriter, request *http.Request) {
+	if err := load_config(); err != nil {
+		fmt.Fprintln(w, "reload error! %s", err)
+	} else {
+		fmt.Fprintln(w, "reload success")
+	}
+}
 
 // func TimeParseYYYYMMDD(in string, sub string) (out time.Time, err error) {
 // 	layout := "2006" + sub + "01" + sub + "02"
@@ -38,7 +69,7 @@ func getCurDay() (date int) {
 
 func Downfile(w http.ResponseWriter, r *http.Request) {
 	filename := r.FormValue("context")
-	filepath := BaseUploadPath + filename
+	filepath := cf.File_dir + filename
 
 	w.Header().Set("Pragma", "No-cache")
 	w.Header().Set("Cache-Control", "No-cache")
@@ -47,37 +78,40 @@ func Downfile(w http.ResponseWriter, r *http.Request) {
 	http.ServeFile(w, r, filepath)
 }
 
-const UploadPath = "E:\\fileserver\\upload\\"
-
 func Uploadfile(w http.ResponseWriter, request *http.Request) {
-	fmt.Println("handle upload")
 	//文件上传只允许POST方法
 	if request.Method != http.MethodPost {
 		w.WriteHeader(http.StatusMethodNotAllowed)
-		_, _ = w.Write([]byte("Method not allowed"))
+		// _, err = w.Write([]byte("Method not allowed"))
+		fmt.Fprintln(w, "Uploadfile error Method not allowed,Please use [Post] Method")
 		return
 	}
-	fmt.Println("handle upload1")
+
 	//从表单中读取文件
 	file, fileHeader, err := request.FormFile("file")
-	fmt.Println(file)
-	fmt.Println(fileHeader)
+	// fmt.Println(file)
+	// fmt.Println(fileHeader)
 	if err != nil {
-		_, _ = io.WriteString(w, "Read file error")
+		// _, err = io.WriteString(w, "Read file error")
+		fmt.Fprintln(w, "Uploadfile error file = %s Read file error", file)
 		return
 	}
-	fmt.Println("handle upload2")
+
 	//defer 结束时关闭文件
 	defer file.Close()
-	fmt.Println("filename: " + fileHeader.Filename)
+	// fmt.Println("filename: " + fileHeader.Filename)
 
 	//创建文件
-	newFile, err := os.Create(UploadPath + "/" + fileHeader.Filename)
+	filePath := cf.File_dir + "/" + fileHeader.Filename
+	// log.Println("%s", filePath)
+	// newFile, err := os.Create(cf.File_dir + "/" + fileHeader.Filename)
+	newFile, err := os.Create(filePath)
 	if err != nil {
-		_, _ = io.WriteString(w, "Create file error")
+		// _, err = io.WriteString(w, "Create file error")
+		fmt.Fprintln(w, "Uploadfile error Create file error. path is ", filePath)
 		return
 	}
-	fmt.Println("handle upload3")
+
 	//defer 结束时关闭文件
 	defer newFile.Close()
 
@@ -87,18 +121,18 @@ func Uploadfile(w http.ResponseWriter, request *http.Request) {
 		_, _ = io.WriteString(w, "Write file error")
 		return
 	}
-	fmt.Println("handle upload4")
-	_, _ = io.WriteString(w, "Upload success")
+	// _, _ = io.WriteString(w, "Upload success")
+	fmt.Fprintln(w, "Uploadfile success filePath = ", filePath)
 }
 
 // 清理目录中一个月前的的临时文件  文件格式 日期_创建时间
 func cleanfile(w http.ResponseWriter, r *http.Request) {
 	fmt.Fprintln(w, "start clean file ... please wait !!")
-
+	return
 	curDay := getCurDay()
 
 	// 读取上传目录下文件名
-	_dir, err := ioutil.ReadDir(BaseUploadPath)
+	_dir, err := ioutil.ReadDir(cf.File_dir)
 	if err != nil {
 		return
 	}
@@ -119,12 +153,11 @@ func cleanfile(w http.ResponseWriter, r *http.Request) {
 			// 遍历删除一个月前的文件夹
 			if dirDate < curDay-100 {
 				fmt.Println(dirDate)
-				removeDir := BaseUploadPath + dirname
+				removeDir := cf.File_dir + dirname
 				os.RemoveAll(removeDir)
 			}
 		}
 	}
-
 }
 
 // 获取CPU使用情况
@@ -197,10 +230,6 @@ func GetSystemInfo(w http.ResponseWriter, r *http.Request) {
 	fmt.Fprintln(w, strDisk+strMem+strCPU)
 }
 
-func GetProcessInfo(w http.ResponseWriter, r *http.Request) {
-	fmt.Fprintln(w, "console")
-}
-
 func GetServiceInfo(w http.ResponseWriter, r *http.Request) {
 	services, _ := winservices.ListServices()
 
@@ -214,10 +243,37 @@ func GetServiceInfo(w http.ResponseWriter, r *http.Request) {
 	fmt.Fprintln(w, "console")
 }
 
+func help(w http.ResponseWriter, r *http.Request) {
+	ret := `
+	/ 访问文件服务
+	/cleanfile 清理文件
+	/Uploadfile 上传文件 post方法 上传地址：
+	/Downfile 下载文件 无法直接调用
+	/GetSystemInfo 获取系统信息(内存 磁盘 cpu)
+	/TestDir  打印文件路径（注意无法重新设置文件服务器根目录，需要重新设置根目录需要重启服务）
+	/ReloadConf 重新加载路径
+	`
+
+	fmt.Fprintln(w, ret)
+}
+
 func main() {
+
+	// var cf conf
+	if err := load_config(); err != nil {
+		log.Println("init load failed!!! %s", err)
+	} else {
+		log.Println("init load success", cf.Pdb_dir)
+	}
+
 	mux := http.NewServeMux()
 
+	//
+	mux.HandleFunc("/help", help)
+
 	// 其他接口 清理文件，上传下载文件
+	mux.HandleFunc("/TestDir", TestDir)
+	mux.HandleFunc("/ReloadConf", ReloadConf)
 	mux.HandleFunc("/cleanfile", cleanfile)
 	mux.HandleFunc("/Uploadfile", Uploadfile)
 	mux.HandleFunc("/Downfile", Downfile)
@@ -233,7 +289,7 @@ func main() {
 	// mux.HandleFunc("KillPython", KillPython)
 
 	// 文件服务器
-	mux.Handle("/", http.FileServer(http.Dir(BaseUploadPath)))
+	mux.Handle("/", http.FileServer(http.Dir(cf.File_server)))
 
 	server := &http.Server{
 		Addr:    ":8081",

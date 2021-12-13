@@ -1,0 +1,6 @@
+#pdb路径
+pdb_dir="D:\\fileserver\\pdb"
+#上传文件路径
+file_dir="D:\\gitproject"
+#文件服务根目录
+file_server="D:\\gitproject"

@@ -246,7 +246,7 @@ func GetServiceInfo(w http.ResponseWriter, r *http.Request) {
 	fmt.Fprintln(w, "console")
 }
 
-func main() {
+func mainfunc() {
 	mux := http.NewServeMux()
 
 	// 其他接口
