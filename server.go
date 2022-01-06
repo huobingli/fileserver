@@ -7,6 +7,7 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"reflect"
 	"strconv"
 	"strings"
 	"time"
@@ -27,7 +28,7 @@ type conf struct {
 var cf conf
 
 // const cf conf
-func load_config() error {
+func load_default_config() error {
 	// var cf conf
 	var path string = "./conf.toml"
 	if _, err := toml.DecodeFile(path, &cf); err != nil {
@@ -37,13 +38,23 @@ func load_config() error {
 	return nil
 }
 
-func TestDir(w http.ResponseWriter, request *http.Request) {
-	str := "pdb目录" + cf.Pdb_dir + "\n" + "上传目录" + cf.File_dir
+func load_config(path string) error {
+	// var cf conf
+	// var path string = "./conf.toml"
+	if _, err := toml.DecodeFile(path, &cf); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func Testdir(w http.ResponseWriter, request *http.Request) {
+	str := "pdb目录" + cf.Pdb_dir + "\n" + "上传目录" + cf.File_dir + "\n" + "文件服务根目录" + cf.File_server
 	fmt.Fprintln(w, str)
 }
 
-func ReloadConf(w http.ResponseWriter, request *http.Request) {
-	if err := load_config(); err != nil {
+func Reloadconf(w http.ResponseWriter, request *http.Request) {
+	if err := load_default_config(); err != nil {
 		fmt.Fprintln(w, "reload error! %s", err)
 	} else {
 		fmt.Fprintln(w, "reload success")
@@ -78,36 +89,28 @@ func Downfile(w http.ResponseWriter, r *http.Request) {
 	http.ServeFile(w, r, filepath)
 }
 
-func Uploadfile(w http.ResponseWriter, request *http.Request) {
+func Uploadpdb(w http.ResponseWriter, request *http.Request) {
 	//文件上传只允许POST方法
 	if request.Method != http.MethodPost {
 		w.WriteHeader(http.StatusMethodNotAllowed)
-		// _, err = w.Write([]byte("Method not allowed"))
 		fmt.Fprintln(w, "Uploadfile error Method not allowed,Please use [Post] Method")
 		return
 	}
 
 	//从表单中读取文件
 	file, fileHeader, err := request.FormFile("file")
-	// fmt.Println(file)
-	// fmt.Println(fileHeader)
 	if err != nil {
-		// _, err = io.WriteString(w, "Read file error")
 		fmt.Fprintln(w, "Uploadfile error file = %s Read file error", file)
 		return
 	}
 
 	//defer 结束时关闭文件
 	defer file.Close()
-	// fmt.Println("filename: " + fileHeader.Filename)
 
 	//创建文件
-	filePath := cf.File_dir + "/" + fileHeader.Filename
-	// log.Println("%s", filePath)
-	// newFile, err := os.Create(cf.File_dir + "/" + fileHeader.Filename)
+	filePath := cf.Pdb_dir + "/" + fileHeader.Filename
 	newFile, err := os.Create(filePath)
 	if err != nil {
-		// _, err = io.WriteString(w, "Create file error")
 		fmt.Fprintln(w, "Uploadfile error Create file error. path is ", filePath)
 		return
 	}
@@ -121,12 +124,49 @@ func Uploadfile(w http.ResponseWriter, request *http.Request) {
 		_, _ = io.WriteString(w, "Write file error")
 		return
 	}
-	// _, _ = io.WriteString(w, "Upload success")
+	fmt.Fprintln(w, "Uploadfile success filePath = ", filePath)
+}
+
+func Uploadfile(w http.ResponseWriter, request *http.Request) {
+	//文件上传只允许POST方法
+	if request.Method != http.MethodPost {
+		w.WriteHeader(http.StatusMethodNotAllowed)
+		fmt.Fprintln(w, "Uploadfile error Method not allowed,Please use [Post] Method")
+		return
+	}
+
+	//从表单中读取文件
+	file, fileHeader, err := request.FormFile("file")
+	if err != nil {
+		fmt.Fprintln(w, "Uploadfile error file = %s Read file error", file)
+		return
+	}
+
+	//defer 结束时关闭文件
+	defer file.Close()
+
+	//创建文件
+	filePath := cf.File_dir + "/" + fileHeader.Filename
+	newFile, err := os.Create(filePath)
+	if err != nil {
+		fmt.Fprintln(w, "Uploadfile error Create file error. path is ", filePath)
+		return
+	}
+
+	//defer 结束时关闭文件
+	defer newFile.Close()
+
+	//将文件写到本地
+	_, err = io.Copy(newFile, file)
+	if err != nil {
+		_, _ = io.WriteString(w, "Write file error")
+		return
+	}
 	fmt.Fprintln(w, "Uploadfile success filePath = ", filePath)
 }
 
 // 清理目录中一个月前的的临时文件  文件格式 日期_创建时间
-func cleanfile(w http.ResponseWriter, r *http.Request) {
+func Cleanfile(w http.ResponseWriter, r *http.Request) {
 	fmt.Fprintln(w, "start clean file ... please wait !!")
 	return
 	curDay := getCurDay()
@@ -246,12 +286,14 @@ func GetServiceInfo(w http.ResponseWriter, r *http.Request) {
 func help(w http.ResponseWriter, r *http.Request) {
 	ret := `
 	/ 访问文件服务
-	/cleanfile 清理文件
-	/Uploadfile 上传文件 post方法 上传地址：
+	/Cleanfile 清理文件
+	` +
+		`/Uploadfile 上传文件 post方法 上传地址：` + cf.File_dir + "\n" +
+		`	/Uploadpdb  上传文件 post方法 上传地址：` + cf.Pdb_dir + `
 	/Downfile 下载文件 无法直接调用
 	/GetSystemInfo 获取系统信息(内存 磁盘 cpu)
 	/TestDir  打印文件路径（注意无法重新设置文件服务器根目录，需要重新设置根目录需要重启服务）
-	/ReloadConf 重新加载路径
+	/Reloadconf 重新加载路径
 	`
 
 	fmt.Fprintln(w, ret)
@@ -259,12 +301,28 @@ func help(w http.ResponseWriter, r *http.Request) {
 
 func main() {
 
-	// var cf conf
-	if err := load_config(); err != nil {
-		log.Println("init load failed!!! %s", err)
+	// fmt.Println(os.Args)
+	if len(os.Args) < 1 {
+		if err := load_default_config(); err != nil {
+			log.Println("init load failed!!! %s", err)
+		} else {
+			log.Println("init load success", cf.Pdb_dir)
+		}
 	} else {
-		log.Println("init load success", cf.Pdb_dir)
+		fmt.Println(os.Args[1])
+		fmt.Println(reflect.TypeOf(os.Args[1]))
+		if err := load_config(os.Args[1]); err != nil {
+			log.Println("init load failed!!! %s", err)
+		} else {
+			log.Println("init load success", cf.Pdb_dir)
+		}
 	}
+
+	// for i, v := range os.Args {
+	// 	fmt.Printf("args[%v]=%v\n", i, v)
+	// }
+
+	// var cf conf
 
 	mux := http.NewServeMux()
 
@@ -272,9 +330,10 @@ func main() {
 	mux.HandleFunc("/help", help)
 
 	// 其他接口 清理文件，上传下载文件
-	mux.HandleFunc("/TestDir", TestDir)
-	mux.HandleFunc("/ReloadConf", ReloadConf)
-	mux.HandleFunc("/cleanfile", cleanfile)
+	mux.HandleFunc("/Testdir", Testdir)
+	mux.HandleFunc("/Reloadconf", Reloadconf)
+	mux.HandleFunc("/Cleanfile", Cleanfile)
+	mux.HandleFunc("/Uploadpdb", Uploadpdb)
 	mux.HandleFunc("/Uploadfile", Uploadfile)
 	mux.HandleFunc("/Downfile", Downfile)
 
